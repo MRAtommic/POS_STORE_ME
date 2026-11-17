@@ -217,9 +217,7 @@ function ocard(o, actions = true) {
   const isClosed = !isActive(o);
 
   const chips = [
-    o.acknowledgedViaLine ? `<span class="ochip" style="background:var(--surface-2);color:var(--ok);border:1px solid var(--ok);font-weight:700">🔕 ทราบผ่าน LINE แล้ว</span>` : '',
-    `<span class="ochip">${ORDER_TYPE[o.orderType] || 'สั่งกลับบ้าน'}</span>`,
-    o.table ? `<span class="ochip"><b>โต๊ะ ${esc(o.table)}</b></span>` : '',
+    o.acknowledgedViaLine ? `<span class="ochip" style="background:var(--surface-2);color:var(--ok);border:1px solid var(--ok);font-weight:700">ทราบผ่าน LINE แล้ว</span>` : '',
     o.phone ? `<span class="ochip">${esc(o.phone)}</span>` : '',
     `<span class="ochip ${late ? 'late' : ''}">${ageText(o)}</span>`
   ].filter(Boolean).join('');
