@@ -1,0 +1,16 @@
+{
+  "name": "เครป ริมคลอง - สั่งอาหารออนไลน์",
+  "short_name": "เครป ริมคลอง",
+  "description": "สั่งเครปและเครื่องดื่ม เครป ริมคลอง",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#2312EA",
+  "theme_color": "#2312EA",
+  "lang": "th",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

@@ -1,0 +1,23 @@
+[Unit]
+Description=POS เครป ริมคลอง (Node.js)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pos
+Group=pos
+WorkingDirectory=/opt/pos
+ExecStart=/usr/bin/node server.js
+Restart=always
+RestartSec=3
+Environment=NODE_ENV=production
+# ความปลอดภัยพื้นฐาน: ไม่ให้เพิ่มสิทธิ์ และเขียนได้เฉพาะในโฟลเดอร์ของแอป
+NoNewPrivileges=true
+ProtectSystem=full
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/opt/pos
+
+[Install]
+WantedBy=multi-user.target

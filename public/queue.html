@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>จอแสดงคิว · เครป ริมคลอง</title>
+<link rel="icon" href="icon.png" type="image/png">
+<script>
+(function(){
+  try {
+    var t = localStorage.getItem('pos_theme') || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    document.documentElement.setAttribute('data-theme', t);
+  } catch(e) {}
+})();
+</script>
+<link rel="stylesheet" href="style.css?v=20261107_v5">
+</head>
+<body class="tv">
+<h1 id="shop">คิว</h1>
+<div class="cols2">
+  <div class="prep"><h2>กำลังทำ</h2><div class="nums" id="prep"></div></div>
+  <div class="ready"><h2>พร้อมรับ</h2><div class="nums" id="ready"></div></div>
+</div>
+<p style="text-align:center;opacity:.45;margin-top:36px">เปิดหน้านี้บนทีวี/แท็บเล็ตหน้าร้าน · ไม่ต้องล็อกอิน · แตะหน้าจอ 1 ครั้งเพื่อเปิดเสียงเรียกคิว</p>
+<script>
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const phoneFormat = p => { const d = String(p || '').replace(/\D/g, ''); return d.length === 10 ? `${d.slice(0,3)}-${d.slice(3,6)}-${d.slice(6)}` : p; };
+let last = null, ctx;
+document.addEventListener('pointerdown', () => { try { ctx = ctx || new AudioContext(); ctx.resume(); } catch {} }, { once: true });
+function chime() { try { [880, 1175].forEach((f, i) => { const o = ctx.createOscillator(), g = ctx.createGain(); o.connect(g); g.connect(ctx.destination); o.frequency.value = f; g.gain.setValueAtTime(.3, ctx.currentTime + i * .25); g.gain.exponentialRampToValueAtTime(.001, ctx.currentTime + i * .25 + .4); o.start(ctx.currentTime + i * .25); o.stop(ctx.currentTime + i * .25 + .4); }); } catch {} }
+async function tick() {
+  try {
+    const q = await fetch('/api/queue').then(r => r.json());
+    const sName = q.shopName || 'เครป ริมคลอง';
+    document.getElementById('shop').innerHTML = esc(sName) + (q.phone ? `<div style="font-size:28px;font-weight:400;margin-top:8px;opacity:.85">โทร ${esc(phoneFormat(q.phone))}</div>` : '');
+    const html = a => a.map(n => `<div class="n">#${n}</div>`).join('') || '<span style="opacity:.35;font-size:40px">—</span>';
+    document.getElementById('prep').innerHTML = html(q.preparing);
+    document.getElementById('ready').innerHTML = html(q.ready);
+    if (last !== null && q.ready.some(n => !last.includes(n))) chime();
+    last = q.ready;
+  } catch {}
+}
+tick(); setInterval(tick, 3500);
+</script>
+</body>
+</html>

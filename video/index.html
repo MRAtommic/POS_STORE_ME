@@ -1,0 +1,920 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>เครป ริมคลอง · Facebook Promo Video Studio (1080x1920)</title>
+<style>
+  @font-face {
+    font-family: 'THSarabunPSK';
+    src: url('assets/fonts/THSarabunPSK.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+  }
+  @font-face {
+    font-family: 'THSarabunPSK';
+    src: url('assets/fonts/THSarabunPSK-Bold.ttf') format('truetype');
+    font-weight: bold;
+    font-style: normal;
+  }
+
+  :root {
+    --pri: #2D5A4B;
+    --acc: #A8672B;
+    --bg: #1a1e1c;
+    --panel: #242a27;
+    --cream: #FBF8F3;
+    --text: #ffffff;
+    --gold: #f59e0b;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'THSarabunPSK', sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+    padding: 20px 10px;
+  }
+
+  header {
+    text-align: center;
+    margin-bottom: 16px;
+  }
+  h1 {
+    font-size: 32px;
+    font-weight: bold;
+    color: var(--cream);
+    letter-spacing: 0.5px;
+  }
+  .sub {
+    font-size: 18px;
+    color: #a3b8b0;
+    margin-top: 2px;
+  }
+
+  .studio-layout {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 24px;
+    justify-content: center;
+    align-items: flex-start;
+    max-width: 1200px;
+    width: 100%;
+  }
+
+  /* Preview Screen Wrapper (scaled to fit nicely on screen while canvas is 1080x1920) */
+  .canvas-wrapper {
+    position: relative;
+    width: 360px;
+    height: 640px;
+    background: #000;
+    border-radius: 18px;
+    overflow: hidden;
+    box-shadow: 0 16px 40px rgba(0,0,0,0.6), 0 0 0 2px rgba(45, 90, 75, 0.4);
+    flex-shrink: 0;
+  }
+
+  canvas#videoCanvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+    background: #0d1210;
+  }
+
+  /* Safe Area Overlay for Facebook Reels */
+  .safe-overlay {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    display: none;
+  }
+  .safe-overlay.active {
+    display: block;
+  }
+  .safe-top {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: calc(100% * 120 / 1920);
+    background: rgba(220, 38, 38, 0.25);
+    border-bottom: 1px dashed rgba(220, 38, 38, 0.7);
+  }
+  .safe-bottom {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: calc(100% * 260 / 1920);
+    background: rgba(220, 38, 38, 0.25);
+    border-top: 1px dashed rgba(220, 38, 38, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    color: #ffcccc;
+  }
+  .safe-right {
+    position: absolute;
+    top: calc(100% * 120 / 1920);
+    bottom: calc(100% * 260 / 1920);
+    right: 0;
+    width: calc(100% * 140 / 1080);
+    background: rgba(220, 38, 38, 0.18);
+    border-left: 1px dashed rgba(220, 38, 38, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    color: #ffcccc;
+    writing-mode: vertical-rl;
+  }
+
+  /* Studio Control Panel */
+  .controls-panel {
+    flex: 1;
+    min-width: 320px;
+    max-width: 580px;
+    background: var(--panel);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 14px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .timeline-bar {
+    width: 100%;
+    height: 8px;
+    background: #141816;
+    border-radius: 4px;
+    position: relative;
+    cursor: pointer;
+  }
+  .timeline-progress {
+    height: 100%;
+    background: var(--acc);
+    border-radius: 4px;
+    width: 0%;
+  }
+
+  .time-display {
+    display: flex;
+    justify-content: space-between;
+    font-size: 16px;
+    color: #a3b8b0;
+    font-weight: bold;
+  }
+
+  .btn-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  button {
+    font-family: inherit;
+    font-size: 18px;
+    font-weight: bold;
+    padding: 10px 18px;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .btn-pri {
+    background: var(--pri);
+    color: #fff;
+  }
+  .btn-pri:hover {
+    background: #396d5b;
+  }
+  .btn-acc {
+    background: var(--acc);
+    color: #fff;
+  }
+  .btn-acc:hover {
+    background: #c27834;
+  }
+  .btn-sec {
+    background: rgba(255,255,255,0.08);
+    color: #fff;
+    border: 1px solid rgba(255,255,255,0.12);
+  }
+  .btn-sec:hover {
+    background: rgba(255,255,255,0.14);
+  }
+  .btn-sec.active {
+    background: #396d5b;
+    border-color: #396d5b;
+  }
+
+  .scenes-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 6px;
+  }
+  .scene-item {
+    background: rgba(0,0,0,0.25);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 8px;
+    padding: 10px 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    font-size: 16px;
+    transition: all 0.12s ease;
+  }
+  .scene-item:hover, .scene-item.active {
+    background: rgba(45, 90, 75, 0.4);
+    border-color: var(--pri);
+  }
+  .scene-item .badge {
+    font-size: 13px;
+    background: rgba(168, 103, 43, 0.3);
+    color: #f7ba7e;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-weight: bold;
+  }
+
+  .record-status {
+    padding: 12px;
+    background: rgba(0,0,0,0.3);
+    border-radius: 8px;
+    font-size: 15px;
+    color: #94a3b8;
+    line-height: 1.4;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>ร้านเครป ริมคลอง · Facebook Reels & Feed Video</h1>
+  <div class="sub">สเปก: 1080×1920 (9:16) · 36 วินาที · ฟอนต์ TH Sarabun PSK · ภาพจริง 100% ไม่มีสติกเกอร์ AI</div>
+</header>
+
+<div class="studio-layout">
+  <!-- 9:16 Preview Canvas -->
+  <div class="canvas-wrapper">
+    <canvas id="videoCanvas" width="1080" height="1920"></canvas>
+    <div class="safe-overlay" id="safeOverlay">
+      <div class="safe-top"></div>
+      <div class="safe-bottom">โซนปุ่ม/คำบรรยาย Facebook (เว้นขอบล่าง 260px)</div>
+      <div class="safe-right">โซนปุ่ม Like/Share (เว้น 140px)</div>
+    </div>
+  </div>
+
+  <!-- Controls Panel -->
+  <div class="controls-panel">
+    <div>
+      <div class="time-display">
+        <span id="currentTime">00:00.0</span>
+        <span id="currentSceneName">ฉากที่ 1: เปิดหัวร้าน</span>
+        <span id="totalTime">00:36.0</span>
+      </div>
+      <div class="timeline-bar" id="timelineBar">
+        <div class="timeline-progress" id="timelineProg"></div>
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn-pri" id="playBtn">▶ เล่นวิดีโอ</button>
+      <button class="btn-sec" id="restartBtn">↺ เริ่มใหม่</button>
+      <button class="btn-sec" id="toggleSafeBtn">📐 Safe Zone</button>
+      <button class="btn-sec" id="muteBtn">🔊 เปิดเสียง</button>
+    </div>
+
+    <div class="btn-row" style="margin-top:4px">
+      <button class="btn-acc" id="recordBtn" style="flex:1">🎬 บันทึกและดาวน์โหลดวิดีโอ MP4/WebM</button>
+      <button class="btn-sec" id="snapBtn">📸 บันทึกภาพทุกฉาก</button>
+    </div>
+
+    <div class="record-status" id="statusTxt">
+      พร้อมเล่นวิดีโอ (กดปุ่ม "เล่นวิดีโอ" หรือคลิกเลือกฉากด้านล่างเพื่อกระโดดไปยังช่วงที่ต้องการได้ทันที)
+    </div>
+
+    <div style="font-weight:bold;font-size:18px;color:var(--cream);margin-top:6px">โครงเรื่อง 6 ฉากตามสตอรี่บอร์ด:</div>
+    <div class="scenes-list">
+      <div class="scene-item" data-seek="0">
+        <div><b>ฉากที่ 1 (0.0s – 4.0s)</b>: แนะนำร้าน "เครป ริมคลอง"</div>
+        <span class="badge">0–4s</span>
+      </div>
+      <div class="scene-item" data-seek="4">
+        <div><b>ฉากที่ 2 (4.0s – 10.0s)</b>: สโลแกน "หอม อร่อย ใส่แน่น กรอบนาน"</div>
+        <span class="badge">4–10s</span>
+      </div>
+      <div class="scene-item" data-seek="10">
+        <div><b>ฉากที่ 3 (10.0s – 18.0s)</b>: 4 เมนูยอดฮิต + ราคาจริง</div>
+        <span class="badge">10–18s</span>
+      </div>
+      <div class="scene-item" data-seek="18">
+        <div><b>ฉากที่ 4 (18.0s – 24.0s)</b>: แม่ค้าอัธยาศัยดี ยิ้มแย้ม ใส่ใจทุกแผ่น</div>
+        <span class="badge">18–24s</span>
+      </div>
+      <div class="scene-item" data-seek="24">
+        <div><b>ฉากที่ 5 (24.0s – 30.0s)</b>: พิกัดหมู่บ้านเจษฎา 7 ตรงสนามเด็กเล่น</div>
+        <span class="badge">24–30s</span>
+      </div>
+      <div class="scene-item" data-seek="30">
+        <div><b>ฉากที่ 6 (30.0s – 36.0s)</b>: QR Code สั่งออนไลน์ ไม่ต้องรอคิว</div>
+        <span class="badge">30–36s</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<audio id="bgmAudio" src="bgm_carefree.mp3" preload="auto"></audio>
+
+<script>
+(async function() {
+  const canvas = document.getElementById('videoCanvas');
+  const ctx = canvas.getContext('2d');
+  const audio = document.getElementById('bgmAudio');
+  const playBtn = document.getElementById('playBtn');
+  const restartBtn = document.getElementById('restartBtn');
+  const toggleSafeBtn = document.getElementById('toggleSafeBtn');
+  const muteBtn = document.getElementById('muteBtn');
+  const recordBtn = document.getElementById('recordBtn');
+  const snapBtn = document.getElementById('snapBtn');
+  const timelineBar = document.getElementById('timelineBar');
+  const timelineProg = document.getElementById('timelineProg');
+  const currentTimeEl = document.getElementById('currentTime');
+  const currentSceneNameEl = document.getElementById('currentSceneName');
+  const statusTxt = document.getElementById('statusTxt');
+  const safeOverlay = document.getElementById('safeOverlay');
+
+  const TOTAL_DURATION = 36.0; // 36 seconds
+  let isPlaying = false;
+  let isMuted = false;
+  let currentTime = 0;
+  let lastTime = 0;
+  let animId = null;
+
+  // Preload Images
+  const assets = {
+    crepeChocBanana: 'assets/images/crepe_chocolate_banana.jpg',
+    crepeEggHamCheese: 'assets/images/crepe_egg_ham_cheese.jpg',
+    crepeSausageCheese: 'assets/images/crepe_sausage_cheese.jpg',
+    crepeStrawberry: 'assets/images/crepe_strawberry_cream.jpg',
+    cover: 'assets/images/cover.jpg',
+    shopBanner: 'assets/images/shop_banner.jpg',
+    drinkTea: 'assets/images/drink_thai_tea.jpg',
+    drinkSoda: 'assets/images/drink_italian_soda.jpg',
+    qr: 'assets/images/qr_order.png'
+  };
+
+  const images = {};
+  statusTxt.textContent = 'กำลังโหลดภาพและฟอนต์...';
+
+  await Promise.all([
+    ...Object.entries(assets).map(([key, src]) => new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => { images[key] = img; resolve(); };
+      img.onerror = () => { console.warn('Fail load img:', src); resolve(); };
+      img.src = src;
+    })),
+    document.fonts.load('bold 80px "THSarabunPSK"'),
+    document.fonts.load('normal 50px "THSarabunPSK"')
+  ]);
+
+  statusTxt.textContent = 'โหลดภาพและฟอนต์สำเร็จ พร้อมเล่นวิดีโอ';
+
+  // SCENE DEFINITIONS
+  const SCENES = [
+    { start: 0, end: 4.0, name: 'ฉากที่ 1: แนะนำร้าน เครป ริมคลอง' },
+    { start: 4.0, end: 10.0, name: 'ฉากที่ 2: หอม อร่อย ใส่แน่น กรอบนาน' },
+    { start: 10.0, end: 18.0, name: 'ฉากที่ 3: เมนูเด่น 4 สไตล์ + ราคาจริง' },
+    { start: 18.0, end: 24.0, name: 'ฉากที่ 4: แม่ค้าอัธยาศัยดี ยิ้มแย้ม' },
+    { start: 24.0, end: 30.0, name: 'ฉากที่ 5: พิกัดหมู่บ้านเจษฎา 7 ตรงสนามเด็กเล่น' },
+    { start: 30.0, end: 36.0, name: 'ฉากที่ 6: สแกน QR สั่งออนไลน์' },
+  ];
+
+  function getScene(t) {
+    return SCENES.find(s => t >= s.start && t < s.end) || SCENES[SCENES.length - 1];
+  }
+
+  // Draw Helper Functions
+  function drawImageKenBurns(img, x, y, w, h, progress, zoomFrom = 1.0, zoomTo = 1.15, panX = 0, panY = 0) {
+    if (!img) return;
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(x, y, w, h);
+    ctx.clip();
+
+    const zoom = zoomFrom + (zoomTo - zoomFrom) * progress;
+    const curPanX = panX * progress;
+    const curPanY = panY * progress;
+
+    const iw = img.naturalWidth || img.width;
+    const ih = img.naturalHeight || img.height;
+    const aspect = iw / ih;
+    const targetAspect = w / h;
+
+    let dw, dh;
+    if (aspect > targetAspect) {
+      dh = h * zoom;
+      dw = dh * aspect;
+    } else {
+      dw = w * zoom;
+      dh = dw / aspect;
+    }
+
+    const dx = x + (w - dw) / 2 + curPanX;
+    const dy = y + (h - dh) / 2 + curPanY;
+
+    ctx.drawImage(img, dx, dy, dw, dh);
+    ctx.restore();
+  }
+
+  function drawDarkOverlay(alpha = 0.55) {
+    ctx.fillStyle = `rgba(18, 26, 22, ${alpha})`;
+    ctx.fillRect(0, 0, 1080, 1920);
+  }
+
+  function drawGradientVignette() {
+    const g = ctx.createLinearGradient(0, 0, 0, 1920);
+    g.addColorStop(0, 'rgba(15, 25, 20, 0.7)');
+    g.addColorStop(0.3, 'rgba(15, 25, 20, 0.25)');
+    g.addColorStop(0.7, 'rgba(15, 25, 20, 0.45)');
+    g.addColorStop(1, 'rgba(15, 25, 20, 0.95)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, 1080, 1920);
+  }
+
+  function drawBadge(text, x, y, bg = '#2D5A4B', color = '#ffffff', fontSize = 42) {
+    ctx.save();
+    ctx.font = `bold ${fontSize}px "THSarabunPSK"`;
+    const textWidth = ctx.measureText(text).width;
+    const padX = 32;
+    const padY = 14;
+    const bw = textWidth + padX * 2;
+    const bh = fontSize + padY * 2;
+
+    ctx.fillStyle = bg;
+    ctx.beginPath();
+    ctx.roundRect(x - bw / 2, y - bh / 2, bw, bh, 24);
+    ctx.fill();
+
+    ctx.fillStyle = color;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, x, y + 2);
+    ctx.restore();
+  }
+
+  function drawTextWithShadow(text, x, y, font, fill = '#ffffff', align = 'center') {
+    ctx.save();
+    ctx.font = font;
+    ctx.textAlign = align;
+    ctx.textBaseline = 'middle';
+
+    // Shadow
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.85)';
+    ctx.shadowBlur = 24;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 6;
+
+    ctx.fillStyle = fill;
+    ctx.fillText(text, x, y);
+    ctx.restore();
+  }
+
+  // MAIN RENDER LOOP
+  function render(time) {
+    ctx.clearRect(0, 0, 1080, 1920);
+
+    const scene = getScene(time);
+    const sceneTime = time - scene.start;
+    const sceneDuration = scene.end - scene.start;
+    const prog = Math.min(1, Math.max(0, sceneTime / sceneDuration));
+
+    // Scene 1: 0 - 4.0s (Opening)
+    if (time < 4.0) {
+      drawImageKenBurns(images.cover || images.crepeChocBanana, 0, 0, 1080, 1920, prog, 1.0, 1.12, 0, -30);
+      drawGradientVignette();
+
+      drawBadge('อยุธยา · ตำบลลำไทร วังน้อย', 540, 480, '#A8672B', '#ffffff', 44);
+
+      drawTextWithShadow('เครป ริมคลอง', 540, 680, 'bold 130px "THSarabunPSK"', '#FBF8F3');
+      drawTextWithShadow('ความอร่อยกรอบฟิน... ริมคลองลำไทร', 540, 810, 'normal 62px "THSarabunPSK"', '#e2ece7');
+
+      // Card highlight
+      ctx.save();
+      ctx.fillStyle = 'rgba(45, 90, 75, 0.9)';
+      ctx.beginPath();
+      ctx.roundRect(140, 960, 800, 260, 24);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+      ctx.lineWidth = 3;
+      ctx.stroke();
+
+      drawTextWithShadow('เครปร้อนๆ ทำสดใหม่ แป้งหอม ไส้แน่น', 540, 1040, 'bold 56px "THSarabunPSK"', '#ffffff');
+      drawTextWithShadow('พร้อมเครื่องดื่มสดชื่น กาแฟสด & ชาไต้หวัน', 540, 1130, 'normal 48px "THSarabunPSK"', '#cde2d9');
+      ctx.restore();
+    }
+    // Scene 2: 4.0 - 10.0s (Slogan & Crafting)
+    else if (time < 10.0) {
+      drawImageKenBurns(images.crepeEggHamCheese, 0, 0, 1080, 1920, prog, 1.05, 1.2, -40, 0);
+      drawGradientVignette();
+
+      drawBadge('เอกลักษณ์ความอร่อย', 540, 440, '#2D5A4B', '#ffffff', 42);
+
+      drawTextWithShadow('หอม อร่อย ใส่แน่น กรอบนาน', 540, 580, 'bold 105px "THSarabunPSK"', '#FBF8F3');
+      drawTextWithShadow('สูตรแป้งลับเฉพาะ กลิ่นหอมฟุ้ง กรอบอร่อยโดนใจ', 540, 700, 'normal 56px "THSarabunPSK"', '#e2ece7');
+
+      // 3 Value Pillars
+      const pillars = [
+        { title: 'แป้งหอมกรอบ', desc: 'ผสมสดใหม่ อบกรอบไม่อมน้ำมัน' },
+        { title: 'ไส้แน่นทะลัก', desc: 'คัดสรรวัตถุดิบคุณภาพแบบจัดเต็ม' },
+        { title: 'ซอสฉ่ำทั่วแผ่น', desc: 'ราดซอสและท็อปปิ้งจุใจทุกออเดอร์' }
+      ];
+
+      pillars.forEach((p, idx) => {
+        const py = 880 + idx * 190;
+        ctx.save();
+        ctx.fillStyle = 'rgba(20, 32, 26, 0.85)';
+        ctx.beginPath();
+        ctx.roundRect(140, py, 800, 150, 18);
+        ctx.fill();
+        ctx.strokeStyle = '#A8672B';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        ctx.fillStyle = '#f59e0b';
+        ctx.font = 'bold 52px "THSarabunPSK"';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(p.title, 190, py + 50);
+
+        ctx.fillStyle = '#e2ece7';
+        ctx.font = 'normal 44px "THSarabunPSK"';
+        ctx.fillText(p.desc, 190, py + 105);
+        ctx.restore();
+      });
+    }
+    // Scene 3: 10.0 - 18.0s (Best Sellers 4 Menus with Real Prices)
+    else if (time < 18.0) {
+      const subProg = (time - 10.0) / 8.0;
+      const menuIdx = Math.min(3, Math.floor(subProg * 4));
+      const menuLocalProg = (subProg * 4) % 1;
+
+      const menuList = [
+        { name: 'เครปช็อกโกแลตกล้วย', price: '45.-', img: images.crepeChocBanana, note: 'กล้วยหอมทองสด ซอสช็อกเข้มข้น' },
+        { name: 'เครปไข่แฮมชีส', price: '55.-', img: images.crepeEggHamCheese, note: 'ไข่ไก่สด แฮมแน่น ชีสยืดละมุน' },
+        { name: 'เครปไส้กรอกชีส', price: '50.-', img: images.crepeSausageCheese, note: 'ไส้กรอกไก่พรีเมียม ชีสเต็มคำ' },
+        { name: 'ชานมไต้หวัน & เครื่องดื่ม', price: 'เริ่มต้น 35.-', img: images.drinkTea || images.drinkSoda, note: 'ใบชาเข้ม หวานกลมกล่อมชื่นใจ' }
+      ];
+
+      const item = menuList[menuIdx];
+
+      drawImageKenBurns(item.img, 0, 0, 1080, 1920, menuLocalProg, 1.0, 1.15, 0, -20);
+      drawGradientVignette();
+
+      drawBadge('เมนูเด็ดประจำร้าน · ขายดีอันดับ 1', 540, 420, '#A8672B', '#ffffff', 42);
+
+      // Large floating product card
+      ctx.save();
+      ctx.fillStyle = 'rgba(16, 26, 21, 0.9)';
+      ctx.beginPath();
+      ctx.roundRect(110, 1050, 860, 420, 28);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+      ctx.lineWidth = 3;
+      ctx.stroke();
+
+      drawTextWithShadow(item.name, 540, 1150, 'bold 78px "THSarabunPSK"', '#FBF8F3');
+      drawTextWithShadow(item.note, 540, 1250, 'normal 52px "THSarabunPSK"', '#cbdad3');
+
+      // Price Tag Badge
+      ctx.fillStyle = '#2D5A4B';
+      ctx.beginPath();
+      ctx.roundRect(340, 1310, 400, 110, 22);
+      ctx.fill();
+      ctx.strokeStyle = '#f59e0b';
+      ctx.lineWidth = 3;
+      ctx.stroke();
+
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 64px "THSarabunPSK"';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(`เพียง ${item.price}`, 540, 1365);
+      ctx.restore();
+    }
+    // Scene 4: 18.0 - 24.0s (Friendly Service / No Fake AI Humans)
+    else if (time < 24.0) {
+      drawImageKenBurns(images.crepeStrawberry || images.cover, 0, 0, 1080, 1920, prog, 1.02, 1.16, 30, 0);
+      drawGradientVignette();
+
+      drawBadge('ความประทับใจของลูกค้า', 540, 460, '#2D5A4B', '#ffffff', 42);
+
+      drawTextWithShadow('แม่ค้าอัธยาศัยดี ยิ้มแย้ม', 540, 600, 'bold 105px "THSarabunPSK"', '#FBF8F3');
+      drawTextWithShadow('บริการด้วยใจ พูดจาไพเราะ เป็นกันเอง', 540, 720, 'normal 58px "THSarabunPSK"', '#e2ece7');
+
+      ctx.save();
+      ctx.fillStyle = 'rgba(20, 32, 26, 0.88)';
+      ctx.beginPath();
+      ctx.roundRect(140, 920, 800, 360, 24);
+      ctx.fill();
+      ctx.strokeStyle = '#A8672B';
+      ctx.lineWidth = 3;
+      ctx.stroke();
+
+      drawTextWithShadow('“ ใส่ใจทุกแผ่น พิถีพิถันทุกชิ้น ”', 540, 1010, 'bold 62px "THSarabunPSK"', '#f59e0b');
+      drawTextWithShadow('ลูกค้าประจำแวะเวียนมาคุยสนุก', 540, 1100, 'normal 52px "THSarabunPSK"', '#ffffff');
+      drawTextWithShadow('รังสรรค์เครปอร่อยร้อนๆ ส่งถึงมือคุณ', 540, 1180, 'normal 48px "THSarabunPSK"', '#cde2d9');
+      ctx.restore();
+    }
+    // Scene 5: 24.0 - 30.0s (Location & Neighborhood)
+    else if (time < 30.0) {
+      drawImageKenBurns(images.shopBanner || images.cover, 0, 0, 1080, 1920, prog, 1.0, 1.15, 0, -30);
+      drawGradientVignette();
+
+      drawBadge('พิกัดร้าน หาง่าย บรรยากาศสบาย', 540, 420, '#A8672B', '#ffffff', 44);
+
+      drawTextWithShadow('หมู่บ้านเจษฎา 7', 540, 560, 'bold 110px "THSarabunPSK"', '#FBF8F3');
+      drawTextWithShadow('( ตรงสนามเด็กเล่น )', 540, 680, 'bold 82px "THSarabunPSK"', '#f59e0b');
+
+      ctx.save();
+      ctx.fillStyle = 'rgba(16, 26, 21, 0.9)';
+      ctx.beginPath();
+      ctx.roundRect(120, 860, 840, 440, 24);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+      ctx.lineWidth = 3;
+      ctx.stroke();
+
+      drawTextWithShadow('ตำบลลำไทร อำเภอวังน้อย', 540, 950, 'bold 64px "THSarabunPSK"', '#ffffff');
+      drawTextWithShadow('จังหวัดพระนครศรีอยุธยา 13170', 540, 1030, 'normal 54px "THSarabunPSK"', '#d3e4dc');
+
+      // Divider line
+      ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+      ctx.beginPath();
+      ctx.moveTo(220, 1110);
+      ctx.lineTo(860, 1110);
+      ctx.stroke();
+
+      drawTextWithShadow('เปิดบริการทุกวัน: 11.00 – 20.00 น.', 540, 1190, 'bold 54px "THSarabunPSK"', '#f59e0b');
+      drawTextWithShadow('โทรสอบถาม: 098-712-7099', 540, 1260, 'normal 46px "THSarabunPSK"', '#ffffff');
+      ctx.restore();
+    }
+    // Scene 6: 30.0 - 36.0s (Call To Action & Real QR Code)
+    else {
+      drawImageKenBurns(images.cover || images.crepeEggHamCheese, 0, 0, 1080, 1920, prog, 1.0, 1.1, 0, 0);
+      drawGradientVignette();
+
+      drawBadge('ไม่ต้องยืนรอคิว สั่งล่วงหน้าได้เลย', 540, 360, '#2D5A4B', '#ffffff', 42);
+
+      drawTextWithShadow('สั่งออนไลน์ผ่านมือถือ', 540, 480, 'bold 100px "THSarabunPSK"', '#FBF8F3');
+      drawTextWithShadow('สแกน QR สั่งเลย แล้วมารับที่หน้าร้าน', 540, 580, 'normal 56px "THSarabunPSK"', '#e2ece7');
+
+      // Big QR Card (Safe above bottom zone)
+      ctx.save();
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.roundRect(240, 680, 600, 640, 32);
+      ctx.fill();
+      ctx.strokeStyle = '#2D5A4B';
+      ctx.lineWidth = 8;
+      ctx.stroke();
+
+      if (images.qr) {
+        ctx.drawImage(images.qr, 290, 720, 500, 500);
+      }
+
+      ctx.fillStyle = '#2D5A4B';
+      ctx.font = 'bold 52px "THSarabunPSK"';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('crepe.openchat.sbs', 540, 1270);
+      ctx.restore();
+
+      // Payment & Contact Info (Safe from Facebook bottom bar)
+      ctx.save();
+      ctx.fillStyle = 'rgba(20, 32, 26, 0.9)';
+      ctx.beginPath();
+      ctx.roundRect(140, 1370, 800, 200, 20);
+      ctx.fill();
+      ctx.strokeStyle = '#A8672B';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      drawTextWithShadow('รองรับชำระด้วย พร้อมเพย์ (PromptPay) & เงินสด', 540, 1430, 'bold 46px "THSarabunPSK"', '#f59e0b');
+      drawTextWithShadow('โทร: 098-712-7099 · เฟซบุ๊ก: เครป ริมคลอง', 540, 1510, 'normal 46px "THSarabunPSK"', '#ffffff');
+      ctx.restore();
+    }
+  }
+
+  // Animation Loop
+  function tick(timestamp) {
+    if (!lastTime) lastTime = timestamp;
+    const delta = (timestamp - lastTime) / 1000;
+    lastTime = timestamp;
+
+    if (isPlaying) {
+      currentTime += delta;
+      if (currentTime >= TOTAL_DURATION) {
+        currentTime = TOTAL_DURATION;
+        pause();
+      }
+    }
+
+    render(currentTime);
+    updateUI();
+
+    if (isPlaying) {
+      animId = requestAnimationFrame(tick);
+    }
+  }
+
+  function updateUI() {
+    timelineProg.style.width = `${(currentTime / TOTAL_DURATION) * 100}%`;
+    const sec = Math.floor(currentTime);
+    const msec = Math.floor((currentTime % 1) * 10);
+    currentTimeEl.textContent = `00:${sec < 10 ? '0' : ''}${sec}.${msec}`;
+
+    const scene = getScene(currentTime);
+    currentSceneNameEl.textContent = scene.name;
+
+    document.querySelectorAll('.scene-item').forEach(el => {
+      const seek = parseFloat(el.dataset.seek);
+      el.classList.toggle('active', currentTime >= seek && currentTime < seek + 6.0);
+    });
+  }
+
+  function play() {
+    isPlaying = true;
+    lastTime = performance.now();
+    playBtn.textContent = '⏸ พักชั่วคราว';
+    playBtn.classList.add('btn-acc');
+    playBtn.classList.remove('btn-pri');
+
+    if (!isMuted) {
+      audio.currentTime = currentTime;
+      audio.play().catch(() => {});
+    }
+    animId = requestAnimationFrame(tick);
+  }
+
+  function pause() {
+    isPlaying = false;
+    playBtn.textContent = '▶ เล่นวิดีโอ';
+    playBtn.classList.add('btn-pri');
+    playBtn.classList.remove('btn-acc');
+    audio.pause();
+    if (animId) cancelAnimationFrame(animId);
+  }
+
+  playBtn.onclick = () => {
+    if (isPlaying) pause();
+    else {
+      if (currentTime >= TOTAL_DURATION) currentTime = 0;
+      play();
+    }
+  };
+
+  restartBtn.onclick = () => {
+    currentTime = 0;
+    render(0);
+    updateUI();
+    if (isPlaying) {
+      audio.currentTime = 0;
+      audio.play().catch(() => {});
+    }
+  };
+
+  muteBtn.onclick = () => {
+    isMuted = !isMuted;
+    audio.muted = isMuted;
+    muteBtn.textContent = isMuted ? '🔇 ปิดเสียงอยู่' : '🔊 เปิดเสียง';
+    muteBtn.classList.toggle('active', !isMuted);
+  };
+
+  toggleSafeBtn.onclick = () => {
+    safeOverlay.classList.toggle('active');
+    toggleSafeBtn.classList.toggle('active');
+  };
+
+  timelineBar.onclick = (e) => {
+    const rect = timelineBar.getBoundingClientRect();
+    const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    currentTime = ratio * TOTAL_DURATION;
+    render(currentTime);
+    updateUI();
+    if (isPlaying) {
+      audio.currentTime = currentTime;
+    }
+  };
+
+  document.querySelectorAll('.scene-item').forEach(el => {
+    el.onclick = () => {
+      currentTime = parseFloat(el.dataset.seek);
+      render(currentTime);
+      updateUI();
+      if (isPlaying) {
+        audio.currentTime = currentTime;
+      }
+    };
+  });
+
+  // RECORD & EXPORT VIDEO
+  recordBtn.onclick = async () => {
+    pause();
+    recordBtn.disabled = true;
+    statusTxt.textContent = 'กำลังเรนเดอร์วิดีโอแบบ 30 FPS กรุณารอสักครู่...';
+
+    currentTime = 0;
+    audio.currentTime = 0;
+    render(0);
+    updateUI();
+
+    const stream = canvas.captureStream(30);
+
+    // Audio mixing
+    try {
+      const actx = new (window.AudioContext || window.webkitAudioContext)();
+      const srcNode = actx.createMediaElementSource(audio);
+      const dest = actx.createMediaStreamDestination();
+      srcNode.connect(dest);
+      srcNode.connect(actx.destination);
+      if (dest.stream.getAudioTracks().length) {
+        stream.addTrack(dest.stream.getAudioTracks()[0]);
+      }
+    } catch (e) {
+      console.warn('Audio capture warning:', e);
+    }
+
+    const mime = MediaRecorder.isTypeSupported('video/mp4;codecs=avc1') ? 'video/mp4' : 'video/webm;codecs=vp9';
+    const recorder = new MediaRecorder(stream, {
+      mimeType: mime,
+      videoBitsPerSecond: 10000000 // 10 Mbps crisp
+    });
+
+    const chunks = [];
+    recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
+
+    recorder.onstop = () => {
+      const blob = new Blob(chunks, { type: mime });
+      const ext = mime.includes('mp4') ? 'mp4' : 'webm';
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `crepe_rimklong_facebook_promo.${ext}`;
+      a.click();
+      statusTxt.textContent = `เรนเดอร์วิดีโอสำเร็จ! ขนาดไฟล์: ${(blob.size / 1024 / 1024).toFixed(2)} MB (${ext.toUpperCase()})`;
+      recordBtn.disabled = false;
+      audio.pause();
+    };
+
+    recorder.start();
+    audio.play().catch(() => {});
+
+    const fps = 30;
+    const interval = 1000 / fps;
+    const totalFrames = Math.ceil(TOTAL_DURATION * fps);
+    let frame = 0;
+
+    const recordTimer = setInterval(() => {
+      frame++;
+      currentTime = frame / fps;
+      render(currentTime);
+      updateUI();
+
+      const pct = Math.round((frame / totalFrames) * 100);
+      statusTxt.textContent = `กำลังเรนเดอร์วิดีโอ: ${pct}% (เฟรมที่ ${frame}/${totalFrames})...`;
+
+      if (frame >= totalFrames) {
+        clearInterval(recordTimer);
+        recorder.stop();
+      }
+    }, interval);
+  };
+
+  // EXPORT SCENE SNAPSHOTS (High-Res 1080x1920 PNGs)
+  snapBtn.onclick = () => {
+    SCENES.forEach((s, idx) => {
+      const t = s.start + 1.0;
+      render(t);
+      const a = document.createElement('a');
+      a.href = canvas.toDataURL('image/png');
+      a.download = `scene_${idx + 1}_${s.name.replace(/[^a-zA-Z0-9ก-๙]/g, '_')}.png`;
+      a.click();
+    });
+    render(currentTime);
+    statusTxt.textContent = 'บันทึกภาพถ่ายความละเอียดสูงทั้ง 6 ฉากเรียบร้อยแล้ว';
+  };
+
+  // Initial Draw
+  render(0);
+  updateUI();
+})();
+</script>
+
+</body>
+</html>
+

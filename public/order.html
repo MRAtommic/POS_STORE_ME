@@ -1,0 +1,324 @@
+<!doctype html>
+<html lang="th">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#2D5A4B">
+  <title>สถานะออเดอร์ · เครป ริมคลอง</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon.png" type="image/png">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <script>
+(function(){
+  try {
+    var t = localStorage.getItem('pos_theme') || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    document.documentElement.setAttribute('data-theme', t);
+  } catch(e) {}
+})();
+</script>
+<link rel="stylesheet" href="style.css?v=20261107_v14">
+</head>
+
+<body>
+<header class="appbar"><a class="btn sm" href="index.html" id="back">← หน้าเมนู</a><h1 class="grow" id="ttl">สถานะออเดอร์</h1><span id="conn" class="conn" title="เชื่อมต่อแบบเรียลไทม์"></span></header>
+<main class="page" id="main"><div class="skel" style="height:260px;margin-bottom:12px"></div><div class="skel" style="height:140px"></div></main>
+<script src="common.js?v=20261107_v14"></script>
+<script>
+const id = new URLSearchParams(location.search).get('id');
+let order = null, timer = null, _orderWakeLock = null;
+const baseTitle = document.title;
+const STEPS = [['pending_payment', 'ชำระเงิน'], ['paid', 'ร้านรับเงิน'], ['preparing', 'กำลังทำ'], ['ready', 'พร้อมรับ'], ['done', 'สำเร็จ']];
+const stepIndex = s => (s === 'payment_claimed' ? 0 : STEPS.findIndex(x => x[0] === s));
+
+function speakReady(qno) {
+  try {
+    unlockAudio();
+    if (!('speechSynthesis' in window)) return;
+    speechSynthesis.cancel();
+    const qText = typeof thaiNum === 'function' ? thaiNum(qno) : qno;
+    const u = new SpeechSynthesisUtterance(`ขอเชิญคิวหมายเลข ${qText} เครปทำเสร็จแล้ว มารับที่เคาน์เตอร์ได้เลยค่ะ`);
+    u.lang = 'th-TH';
+    u.rate = 0.95;
+    u.volume = 1;
+    const thVoices = speechSynthesis.getVoices().filter(v => /^th([-_]|$)/i.test(v.lang));
+    if (thVoices.length) u.voice = thVoices[0];
+    speechSynthesis.speak(u);
+  } catch {}
+}
+
+async function requestOrderWakeLock() {
+  if ('wakeLock' in navigator && !document.hidden && order && ['paid', 'preparing', 'payment_claimed'].includes(order.status)) {
+    try {
+      if (!_orderWakeLock) {
+        _orderWakeLock = await navigator.wakeLock.request('screen');
+        _orderWakeLock.addEventListener('release', () => { _orderWakeLock = null; });
+      }
+    } catch {}
+  }
+}
+function releaseOrderWakeLock() {
+  if (_orderWakeLock) {
+    try { _orderWakeLock.release(); } catch {}
+    _orderWakeLock = null;
+  }
+}
+
+['pointerdown', 'touchstart', 'click'].forEach(evt => {
+  document.addEventListener(evt, () => {
+    unlockAudio();
+    requestOrderWakeLock();
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission().catch(() => {});
+    }
+  }, { passive: true });
+});
+
+(async function () {
+  await initAuth();
+  await load();
+  requestOrderWakeLock();
+  connectWS(o => {
+    if (o.id !== id) return;
+    const was = order && order.status;
+    order = { ...order, ...o, qr: o.status === 'pending_payment' ? order.qr : null };
+    render();
+    if (was && was !== o.status) {
+      if (o.status === 'ready') {
+        releaseOrderWakeLock();
+        ding(3);
+        buzz([300, 150, 300, 150, 500]);
+        speakReady(o.queueNo);
+        document.title = '🎉 เครปเสร็จแล้ว! คิว #' + o.queueNo;
+        toast('🎉 เครปคิว #' + o.queueNo + ' ทำเสร็จแล้ว มารับที่เคาน์เตอร์ได้เลย!', 'ok');
+        if ('Notification' in window && Notification.permission === 'granted') {
+          new Notification('🎉 เครปของคุณเสร็จแล้ว! คิว #' + o.queueNo, {
+            body: 'อาหารพร้อมแล้ว มารับที่เคาน์เตอร์ได้เลยครับ',
+            icon: 'icon.svg'
+          });
+        }
+      } else if (['paid', 'preparing'].includes(o.status)) {
+        requestOrderWakeLock();
+        ding(1);
+        buzz(100);
+        document.title = CFG.statusText[o.status] || baseTitle;
+      } else {
+        ding(1);
+        buzz(60);
+        document.title = CFG.statusText[o.status] || baseTitle;
+      }
+    }
+  }, null, ok => $('#conn').classList.toggle('off', !ok));
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) {
+      requestOrderWakeLock();
+      load();
+    }
+  });
+})();
+
+    async function load() {
+      try { order = await api('/api/orders/' + id); render(); }
+      catch (e) { $('#main').innerHTML = `<div class="empty"><div class="b">${esc(e.message)}</div><a class="btn primary mt" href="index.html">กลับหน้าเมนู</a></div>`; }
+    }
+
+    function render() {
+      const o = order, idx = stepIndex(o.status), cash = o.payment.method === 'cash', d = o.discount || {};
+      $('#ttl').textContent = `ออเดอร์ #${o.queueNo}`;
+      const tone = o.status === 'rejected' ? 'bad' : ['ready', 'done'].includes(o.status) ? 'ok' : '';
+
+      const getHeadline = () => {
+        if (o.status === 'pending_payment') return cash ? 'กรุณาชำระเงินสดที่เคาน์เตอร์' : 'กรุณาโอนเงินและกดยืนยัน';
+        if (o.status === 'payment_claimed') return cash ? 'รอร้านยืนยันการรับเงิน' : 'ร้านกำลังตรวจสอบการโอน';
+        if (o.status === 'paid') return 'ร้านยืนยันรับเงินแล้ว';
+        if (o.status === 'preparing') return 'ร้านกำลังทำอาหารให้คุณ';
+        if (o.status === 'ready') return 'อาหารพร้อมแล้ว มารับได้เลย';
+        if (o.status === 'done') return 'เสร็จเรียบร้อย ขอบคุณครับ';
+        if (o.status === 'rejected') return 'ออเดอร์ถูกยกเลิก';
+        return CFG.statusText[o.status] || '';
+      };
+
+      $('#main').innerHTML = `
+    <div class="hero ${tone}" id="hero">
+      <div class="lbl">เลขคิวของคุณ</div>
+      <div class="qno">#${o.queueNo}</div>
+      <div class="stx">${getHeadline()}</div>
+      <div class="small mt-s" style="opacity:.9">${['paid', 'preparing', 'payment_claimed'].includes(o.status) && !cash ? `ประมาณ ~${o.etaMin} นาที` : ''}</div>
+      ${o.status === 'rejected' ? `<div class="mt-s" style="color:var(--bad)">เหตุผล: ${esc(o.rejectReason || '-')}</div>` :
+          `<div class="steps">${STEPS.map((s, i) => {
+            const isDone = i < idx || o.status === 'done';
+            const isCur = i === idx && o.status !== 'done';
+            return `<div class="step ${isDone ? 'done' : isCur ? 'cur' : ''}"><div class="dot">${isDone ? icon('check', 16) : ''}</div><span>${s[1]}</span></div>`;
+          }).join('')}</div>`}
+    </div>
+
+    ${o.status === 'pending_payment' && o.qr ? `
+      <div class="card qrcard">
+        <h3 style="justify-content:center">สแกนเพื่อจ่ายเงิน</h3>
+        ${CFG.autoCancelMinutes ? `<div class="timer mt-s" id="timer"><span id="tleft">กรุณาชำระภายใน ${CFG.autoCancelMinutes}:00 นาที</span></div>` : ''}
+        <img class="qr mt" src="${o.qr}" alt="QR พร้อมเพย์">
+        <div class="amount">${baht(o.total)}</div>
+        <div class="row wrap mt-s" style="justify-content:center">
+          <button class="btn sm" id="copyAmt">คัดลอกยอดเงิน</button>
+          <a class="btn sm" href="${o.qr}" download="promptpay-qr-${o.queueNo}.png">บันทึกรูป QR</a>
+        </div>
+        <details class="more mt">
+          <summary>วิธีชำระเงิน (กดดู)</summary>
+          <div class="in">
+            <ol class="howto">
+              <li>เปิดแอปธนาคารของคุณ</li>
+              <li>สแกน QR Code นี้ (หรือเลือกรูปที่บันทึก)</li>
+              <li>ตรวจสอบยอดเงินแล้วกดยืนยันโอน</li>
+              <li>แนบสลิปด้านล่าง แล้วกด "ฉันโอนเงินแล้ว"</li>
+            </ol>
+          </div>
+        </details>
+      </div>
+      <div class="card">
+        <label class="upload">
+          <span id="upTxt">${o.payment.slip ? 'เปลี่ยนสลิปที่แนบ' : 'แนบสลิปการโอน' + (CFG.requireSlip ? ' (จำเป็น)' : ' (ถ้ามี)')}</span>
+          <input type="file" id="slipFile" accept="image/*" hidden>
+        </label>
+      </div>
+      <div class="order-bar">
+        <button class="btn primary lg block" id="claim">ฉันโอนเงินแล้ว</button>
+      </div>` : ''}
+
+    ${o.status === 'payment_claimed' ? `
+      <div class="card done-card">
+        ${cash ? `
+          <div class="t">ชำระเงินสดที่เคาน์เตอร์</div>
+          <p class="muted mt-s">แจ้งเลขคิว <b>#${o.queueNo}</b> ยอด <b>${baht(o.total)}</b> ร้านจะกดยืนยันเมื่อรับเงิน</p>
+        ` : `
+          <div class="t">ร้านกำลังตรวจสอบการโอน</div>
+          <p class="muted mt-s">หน้านี้จะอัปเดตอัตโนมัติเมื่อร้านตรวจสอบเรียบร้อย</p>
+          ${o.payment.slip ? `
+            <div class="mt"><button class="btn sm ghost" id="viewSlip">ดูสลิปที่แนบ</button></div>
+          ` : `
+            <div class="mt"><label class="upload">แนบสลิปเพิ่ม<input type="file" id="slipFile" accept="image/*" hidden></label></div>
+          `}
+        `}
+      </div>` : ''}
+
+    ${['pending_payment', 'payment_claimed', 'paid', 'preparing'].includes(o.status) ? `
+      <div class="wait-banner">
+        <div class="row items-center gap-s">
+          <span class="wait-icon">${icon('bell', 24)}</span>
+          <div class="grow">
+            <div class="b">เปิดหน้านี้ทิ้งไว้ได้เลย</div>
+            <div class="small muted">ระบบจะส่งเสียงเตือนและสั่นทันทีเมื่อเครปทำเสร็จ</div>
+          </div>
+          <button class="btn sm ghost" id="testSoundBtn" style="white-space:nowrap;font-size:14px;padding:6px 12px">
+            ${icon('bell', 15)} ทดสอบเสียง
+          </button>
+        </div>
+      </div>` : ''}
+
+    ${['paid', 'preparing'].includes(o.status) ? `
+      <div class="card done-card">
+        <div class="t">${o.status === 'paid' ? 'ร้านรับเงินแล้ว กำลังจัดคิว' : 'ร้านกำลังทำอาหารให้คุณ'}</div>
+        <p class="muted mt-s">กำลังเตรียมเครปแสนอร่อยให้คุณ ขอให้อดใจรอสักครู่นะครับ</p>
+      </div>` : ''}
+
+    ${o.status === 'ready' ? `
+      <div class="card done-card ready-pulse" style="background:#EBF5F0;border:2px solid var(--pri);text-align:center">
+        <div class="t" style="color:var(--pri);font-size:26px;font-weight:700">🎉 เครปของคุณเสร็จแล้ว! มารับได้เลย</div>
+        <p class="mt-s" style="font-size:18px">กรุณาแจ้งเลขคิว <b style="font-size:36px;color:var(--pri);display:block;margin:6px 0">#${o.queueNo}</b> ที่เคาน์เตอร์ร้าน</p>
+        <div class="row wrap mt-s" style="justify-content:center;gap:8px">
+          <button class="btn primary lg grow" id="ackReady">${icon('check', 20)} รับทราบแล้ว</button>
+          <button class="btn ghost sm" id="replaySound">${icon('bell', 16)} ฟังเสียงเรียกอีกครั้ง</button>
+        </div>
+      </div>` : ''}
+
+    ${o.status === 'done' ? `
+      <div class="card done-card">
+        <div class="t">เสร็จเรียบร้อย ขอบคุณครับ</div>
+        ${o.pointsEarned ? `<p class="mt-s"><span class="pill pri">ได้รับ ${o.pointsEarned} แต้ม</span></p>` : ''}
+        <div class="mt"><a class="btn primary" href="index.html">สั่งใหม่อีกครั้ง</a></div>
+      </div>` : ''}
+
+    ${o.status === 'rejected' ? `
+      <div class="mt mb"><a class="btn primary lg block" href="index.html">กลับไปสั่งใหม่</a></div>
+    ` : ''}
+
+    <div class="card">
+      <h3>รายการที่สั่ง</h3>
+      ${o.items.map(i => `<div class="li"><div class="q">${i.qty}</div><div class="grow"><div class="b">${esc(i.name)}</div><div class="small muted">${esc(optionText(i))}</div>${i.note ? `<div class="note">หมายเหตุ: ${esc(i.note)}</div>` : ''}</div><div>${baht(i.unitPrice * i.qty)}</div></div>`).join('')}
+      <hr>
+      <div class="sum">
+        <div><span class="muted">ค่าอาหาร</span><span>${baht(o.subtotal)}</span></div>
+        ${d.couponAmt ? `<div class="disc"><span>คูปอง ${esc(d.coupon)}</span><span>−${baht(d.couponAmt)}</span></div>` : ''}
+        ${d.pointsAmt ? `<div class="disc"><span>ใช้ ${d.pointsUsed} แต้ม</span><span>−${baht(d.pointsAmt)}</span></div>` : ''}
+        <div class="tot"><span>รวมทั้งสิ้น</span><span class="price">${baht(o.total)}</span></div>
+      </div>
+      <div class="small faint mt-s">${cash ? 'ชำระเงินสด' : 'พร้อมเพย์'} · ${dateTH(o.createdAt)} · รหัส ${esc(o.id)}</div>
+    </div>
+
+    ${['pending_payment', 'payment_claimed'].includes(o.status) ? `<button class="btn bad-soft block" id="cancel">ยกเลิกออเดอร์</button>` : ''}
+    ${CFG && CFG.phone ? `
+      <div class="card mt" style="text-align:center">
+        <div class="muted">มีปัญหาหรือสอบถาม ติดต่อทางร้าน</div>
+        <a class="btn primary lg block mt-s" href="tel:${esc(CFG.phone.replace(/\D/g, ''))}">โทร ${esc(phoneFormat(CFG.phone))}</a>
+      </div>
+    ` : ''}`;
+
+      startTimer();
+      const on = (sel, fn) => { const e = $(sel); if (e) e.onclick = fn; };
+      on('#copyAmt', () => copyText(String(o.total)));
+      on('#testSoundBtn', () => {
+        unlockAudio();
+        ding(2);
+        buzz(150);
+        speakReady(o.queueNo);
+        toast('ระบบเสียงเตือนพร้อมทำงาน หน้านี้จะส่งเสียงเรียกเมื่อเครปเสร็จครับ', 'ok');
+      });
+      on('#replaySound', () => {
+        unlockAudio();
+        ding(3);
+        buzz([300, 150, 300, 150, 500]);
+        speakReady(o.queueNo);
+      });
+      on('#ackReady', () => {
+        try { speechSynthesis.cancel(); } catch {}
+        toast('รับทราบแล้ว ขอบคุณครับ', 'ok');
+      });
+      on('#claim', async e => {
+        e.currentTarget.disabled = true;
+        try { order = { ...order, ...(await api(`/api/orders/${id}/claim`, { method: 'POST' })) }; render(); toast('แจ้งโอนแล้ว รอร้านตรวจสอบ', 'ok'); }
+        catch (err) { toast(err.message, 'err'); render(); }
+      });
+      on('#viewSlip', async () => {
+        const r = await fetch(`/api/orders/${id}/slip`, { headers: { Authorization: 'Bearer ' + getToken() } });
+        if (!r.ok) return toast('ไม่พบสลิป', 'err');
+        openSheet({ title: 'สลิปของคุณ', body: `<img class="slip-prev" src="${URL.createObjectURL(await r.blob())}" alt="สลิป">` });
+      });
+      on('#cancel', async () => {
+        if (!(await confirmSheet({ title: 'ยกเลิกออเดอร์นี้?', text: 'แต้ม คูปอง และสต็อกจะถูกคืนให้อัตโนมัติ', ok: 'ยกเลิกออเดอร์', danger: true }))) return;
+        try { order = { ...order, ...(await api(`/api/orders/${id}/cancel`, { method: 'POST' })) }; render(); } catch (e) { toast(e.message, 'err'); }
+      });
+      const f = $('#slipFile');
+      if (f) f.onchange = async () => {
+        if (!f.files[0]) return;
+        $('#upTxt') && ($('#upTxt').textContent = 'กำลังอัปโหลด…');
+        try {
+          const image = await resizeImage(f.files[0], 1100, 0.8);
+          order = { ...order, ...(await api(`/api/orders/${id}/slip`, { method: 'POST', body: { image } })), qr: null }; render(); toast('แนบสลิปแล้ว ร้านกำลังตรวจสอบ', 'ok');
+        } catch (e) { toast(e.message, 'err'); render(); }
+      };
+    }
+
+    function startTimer() {
+      clearInterval(timer);
+      const left = $('#tleft'); if (!left || !CFG.autoCancelMinutes) return;
+      const end = order.createdAt + CFG.autoCancelMinutes * 60000;
+      const tick = () => {
+        const s = Math.max(0, Math.round((end - Date.now()) / 1000));
+        left.textContent = 'กรุณาจ่ายภายใน ' + String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0') + ' นาที';
+        if (s === 0) { clearInterval(timer); setTimeout(load, 2500); }
+      };
+      tick(); timer = setInterval(tick, 1000);
+    }
+  </script>
+</body>
+
+</html>
